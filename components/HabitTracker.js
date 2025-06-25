@@ -16,13 +16,25 @@ export default function HabitTracker() {
   const [selectedHabitId, setSelectedHabitId] = useState(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [newHabitName, setNewHabitName] = useState("");
+  const [newHabitIsPositive, setNewHabitIsPositive] = useState(true);
   const [loading, setLoading] = useState(true);
   const [weeks, setWeeks] = useState([]);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [collapsedHabits, setCollapsedHabits] = useState(new Set());
 
   const scrollRef = useRef(null);
   const selectedHabit = habits.find((h) => h.id === selectedHabitId);
   const isViewAll = selectedHabitId === "view-all";
+
+  // Sort habits: positive first (alphabetized), then negative (alphabetized)
+  const sortedHabits = [...habits].sort((a, b) => {
+    // First sort by type: positive (true) before negative (false)
+    if (a.is_positive !== b.is_positive) {
+      return b.is_positive - a.is_positive; // true (1) - false (0) = 1, false (0) - true (1) = -1
+    }
+    // Then sort alphabetically within each type
+    return a.name.localeCompare(b.name);
+  });
 
   // Get 4 weeks for view all (3 weeks before current + current week)
   const getViewAllWeeks = () => {
@@ -51,6 +63,19 @@ export default function HabitTracker() {
       setSelectedHabitId("view-all");
     }
   }, [habits, selectedHabitId]);
+
+  // Set all habits as collapsed by default when habits are first loaded
+  useEffect(() => {
+    if (habits.length > 0 && collapsedHabits.size === 0) {
+      const currentSortedHabits = [...habits].sort((a, b) => {
+        if (a.is_positive !== b.is_positive) {
+          return b.is_positive - a.is_positive;
+        }
+        return a.name.localeCompare(b.name);
+      });
+      setCollapsedHabits(new Set(currentSortedHabits.map((habit) => habit.id)));
+    }
+  }, [habits, collapsedHabits.size]);
 
   // Infinite scroll handler
   const handleScroll = useCallback(
@@ -118,7 +143,9 @@ export default function HabitTracker() {
     try {
       const { data, error } = await supabase
         .from("habits")
-        .insert([{ name: newHabitName.trim() }])
+        .insert([
+          { name: newHabitName.trim(), is_positive: newHabitIsPositive },
+        ])
         .select();
 
       if (error) throw error;
@@ -127,6 +154,7 @@ export default function HabitTracker() {
       setHabits([...habits, newHabit]);
       setSelectedHabitId(newHabit.id);
       setNewHabitName("");
+      setNewHabitIsPositive(true);
       setShowAddModal(false);
     } catch (error) {
       console.error("Error adding habit:", error);
@@ -158,6 +186,19 @@ export default function HabitTracker() {
     }
   }
 
+  // Toggle collapse state for a habit
+  const toggleHabitCollapse = (habitId) => {
+    setCollapsedHabits((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(habitId)) {
+        newSet.delete(habitId);
+      } else {
+        newSet.add(habitId);
+      }
+      return newSet;
+    });
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -182,10 +223,10 @@ export default function HabitTracker() {
                 value={selectedHabitId || ""}
                 onChange={(e) => setSelectedHabitId(e.target.value)}
                 className="flex-1 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#4169e1] focus:border-transparent bg-white text-gray-900 font-semibold shadow-sm"
-                style={{ padding: "18px 20px", fontSize: "18px" }}
+                style={{ padding: "12px 20px", fontSize: "16px" }}
               >
                 <option value="view-all">View All</option>
-                {habits.map((habit) => (
+                {sortedHabits.map((habit) => (
                   <option key={habit.id} value={habit.id}>
                     {habit.name}
                   </option>
@@ -195,9 +236,9 @@ export default function HabitTracker() {
                 onClick={() => setShowAddModal(true)}
                 className="bg-[#4169e1] text-white rounded-2xl hover:bg-[#2c4bc9] focus:outline-none focus:ring-2 focus:ring-[#4169e1] focus:ring-offset-2 font-bold transition-colors shadow-md"
                 style={{
-                  padding: "18px 28px",
-                  fontSize: "20px",
-                  minWidth: "90px",
+                  padding: "12px 24px",
+                  fontSize: "18px",
+                  minWidth: "80px",
                 }}
               >
                 +
@@ -207,7 +248,7 @@ export default function HabitTracker() {
             <button
               onClick={() => setShowAddModal(true)}
               className="w-full bg-[#4169e1] text-white rounded-2xl hover:bg-[#2c4bc9] focus:outline-none focus:ring-2 focus:ring-[#4169e1] focus:ring-offset-2 font-bold transition-colors shadow-md"
-              style={{ padding: "18px 20px", fontSize: "18px" }}
+              style={{ padding: "12px 20px", fontSize: "16px" }}
             >
               Add Your First Habit
             </button>
@@ -227,21 +268,54 @@ export default function HabitTracker() {
             <div
               style={{ display: "flex", flexDirection: "column", gap: "20px" }}
             >
-              {habits.map((habit) => (
+              {sortedHabits.map((habit) => (
                 <div key={habit.id}>
-                  {/* Habit Name */}
+                  {/* Habit Name with Collapse Button */}
                   <div
                     style={{
-                      fontSize: "16px",
-                      fontWeight: "600",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
                       marginBottom: "12px",
-                      color: "#374151",
                     }}
                   >
-                    {habit.name}
+                    <div
+                      style={{
+                        fontSize: "16px",
+                        fontWeight: "600",
+                        color: "#374151",
+                      }}
+                    >
+                      {habit.name}
+                    </div>
+                    <button
+                      onClick={() => toggleHabitCollapse(habit.id)}
+                      className="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors focus:outline-none focus:ring-2 focus:ring-[#4169e1] focus:ring-offset-1"
+                      title={
+                        collapsedHabits.has(habit.id)
+                          ? "Expand habit"
+                          : "Collapse habit"
+                      }
+                    >
+                      <svg
+                        className={`w-4 h-4 text-gray-600 transition-transform duration-200 ${
+                          collapsedHabits.has(habit.id) ? "rotate-180" : ""
+                        }`}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 9l-7 7-7-7"
+                        />
+                      </svg>
+                    </button>
                   </div>
 
-                  {/* 4x7 Calendar Grid for this habit */}
+                  {/* 4x7 Calendar Grid for this habit - show current week when collapsed, all weeks when expanded */}
                   <div
                     style={{
                       display: "flex",
@@ -249,7 +323,10 @@ export default function HabitTracker() {
                       gap: "8px",
                     }}
                   >
-                    {viewAllWeeks.map((week, weekIndex) => (
+                    {(collapsedHabits.has(habit.id)
+                      ? [viewAllWeeks[3]]
+                      : viewAllWeeks
+                    ).map((week, weekIndex) => (
                       <div
                         key={weekIndex}
                         style={{
@@ -263,6 +340,9 @@ export default function HabitTracker() {
                           const key = `${habit.id}-${dateStr}`;
                           const isCompleted = completions[key] || false;
                           const today = isToday(date);
+                          const habitType = habit.is_positive
+                            ? "positive"
+                            : "negative";
 
                           return (
                             <button
@@ -272,8 +352,8 @@ export default function HabitTracker() {
                                 aspect-square rounded-lg text-xs font-medium transition-all duration-200 min-h-[40px]
                                 ${
                                   isCompleted
-                                    ? "habit-complete shadow-sm"
-                                    : "habit-incomplete"
+                                    ? `habit-complete ${habitType} shadow-sm`
+                                    : `habit-incomplete ${habitType}`
                                 }
                                 ${
                                   today
@@ -318,6 +398,9 @@ export default function HabitTracker() {
                     const key = `${selectedHabit.id}-${dateStr}`;
                     const isCompleted = completions[key] || false;
                     const today = isToday(date);
+                    const habitType = selectedHabit.is_positive
+                      ? "positive"
+                      : "negative";
 
                     return (
                       <button
@@ -327,8 +410,8 @@ export default function HabitTracker() {
                           aspect-square rounded-xl text-sm font-medium transition-all duration-200 min-h-[48px]
                           ${
                             isCompleted
-                              ? "habit-complete shadow-md"
-                              : "habit-incomplete"
+                              ? `habit-complete ${habitType} shadow-md`
+                              : `habit-incomplete ${habitType}`
                           }
                           ${today ? "ring-2 ring-[#4169e1] ring-offset-2" : ""}
                           hover:scale-105 active:scale-95
@@ -341,15 +424,15 @@ export default function HabitTracker() {
                       </button>
                     );
                   })}
+
+                  {/* Loading indicator for infinite scroll */}
+                  {loadingMore && (
+                    <div className="flex justify-center py-8">
+                      <div className="w-6 h-6 border-2 border-[#4169e1] border-t-transparent rounded-full animate-spin"></div>
+                    </div>
+                  )}
                 </div>
               ))}
-
-              {/* Loading indicator for infinite scroll */}
-              {loadingMore && (
-                <div className="flex justify-center py-8">
-                  <div className="w-6 h-6 border-2 border-[#4169e1] border-t-transparent rounded-full animate-spin"></div>
-                </div>
-              )}
             </div>
           </div>
         ) : (
@@ -382,15 +465,54 @@ export default function HabitTracker() {
               style={{
                 padding: "16px 20px",
                 fontSize: "16px",
-                marginBottom: "24px",
+                marginBottom: "16px",
               }}
               autoFocus
             />
+
+            {/* Positive/Negative Toggle */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-3">
+                Habit Type
+              </label>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setNewHabitIsPositive(true)}
+                  className={`flex-1 py-3 px-4 rounded-xl text-sm font-medium transition-all ${
+                    newHabitIsPositive
+                      ? "bg-green-500 text-white shadow-md"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  }`}
+                >
+                  ✓ Positive
+                  <div className="text-xs opacity-80 mt-1">
+                    Good habit to build
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setNewHabitIsPositive(false)}
+                  className={`flex-1 py-3 px-4 rounded-xl text-sm font-medium transition-all ${
+                    !newHabitIsPositive
+                      ? "bg-red-500 text-white shadow-md"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  }`}
+                >
+                  ✗ Negative
+                  <div className="text-xs opacity-80 mt-1">
+                    Bad habit to break
+                  </div>
+                </button>
+              </div>
+            </div>
+
             <div className="flex gap-4">
               <button
                 onClick={() => {
                   setShowAddModal(false);
                   setNewHabitName("");
+                  setNewHabitIsPositive(true);
                 }}
                 className="flex-1 border-2 border-gray-300 text-gray-700 rounded-2xl hover:bg-gray-50 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 font-semibold transition-all"
                 style={{ padding: "14px 24px", fontSize: "16px" }}

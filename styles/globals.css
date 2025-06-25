@@ -49,10 +49,49 @@ body {
   --royal-blue: #4169e1;
   --royal-blue-light: #6b7ee3;
   --royal-blue-dark: #2c4bc9;
+  --positive-green: #10b981;
+  --positive-green-light: #34d399;
+  --positive-green-dark: #059669;
+  --negative-red: #ef4444;
+  --negative-red-light: #f87171;
+  --negative-red-dark: #dc2626;
 }
 
+/* Positive habit styles */
+.habit-complete.positive {
+  background-color: var(--positive-green);
+  color: white;
+}
+
+.habit-incomplete.positive {
+  background-color: #f3f4f6;
+  color: #9ca3af;
+  border: 1px solid #e5e7eb;
+}
+
+.habit-incomplete.positive:hover {
+  background-color: #e5e7eb;
+}
+
+/* Negative habit styles */
+.habit-complete.negative {
+  background-color: var(--negative-red);
+  color: white;
+}
+
+.habit-incomplete.negative {
+  background-color: #f3f4f6;
+  color: #9ca3af;
+  border: 1px solid #e5e7eb;
+}
+
+.habit-incomplete.negative:hover {
+  background-color: #e5e7eb;
+}
+
+/* Legacy styles for backward compatibility */
 .habit-complete {
-  background-color: var(--royal-blue);
+  background-color: var(--positive-green);
   color: white;
 }
 
@@ -83,6 +122,29 @@ html {
     color: #e5e5e5;
   }
 
+  /* Positive habit dark mode */
+  .habit-incomplete.positive {
+    background-color: #1f2937;
+    color: #6b7280;
+    border: 1px solid #374151;
+  }
+
+  .habit-incomplete.positive:hover {
+    background-color: #374151;
+  }
+
+  /* Negative habit dark mode */
+  .habit-incomplete.negative {
+    background-color: #1f2937;
+    color: #6b7280;
+    border: 1px solid #374151;
+  }
+
+  .habit-incomplete.negative:hover {
+    background-color: #374151;
+  }
+
+  /* Legacy dark mode styles */
   .habit-incomplete {
     background-color: #1f2937;
     color: #6b7280;
