@@ -23,7 +23,6 @@ export default function HabitTracker() {
   const [weeks, setWeeks] = useState([]);
   const [loadingMore, setLoadingMore] = useState(false);
   const [collapsedHabits, setCollapsedHabits] = useState(new Set());
-  const [collapsedCategories, setCollapsedCategories] = useState(new Set());
 
   const scrollRef = useRef(null);
   const selectedHabit = habits.find((h) => h.id === selectedHabitId);
@@ -90,30 +89,10 @@ export default function HabitTracker() {
     return weeks;
   };
 
-  // Toggle collapse state for a category
-  const toggleCategoryCollapse = (category) => {
-    setCollapsedCategories((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(category)) {
-        newSet.delete(category);
-      } else {
-        newSet.add(category);
-      }
-      return newSet;
-    });
-  };
-
   useEffect(() => {
     fetchHabits();
     fetchCompletions();
     setWeeks(getInitialWeeks());
-
-    // Collapse work category on weekends (Saturday = 6, Sunday = 0)
-    const today = new Date();
-    const dayOfWeek = today.getDay();
-    if (dayOfWeek === 0 || dayOfWeek === 6) {
-      setCollapsedCategories(new Set(["work"]));
-    }
   }, []);
 
   useEffect(() => {
@@ -278,11 +257,8 @@ export default function HabitTracker() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      {/* Fixed Header */}
-      <div
-        className="sticky top-0 bg-white border-b border-gray-100 z-10"
-        style={{ padding: "20px 16px" }}
-      >
+      {/* Fixed Header - Hidden */}
+      <div style={{ display: "none" }}>
         <div className="flex items-stretch gap-4">
           {habits.length > 0 ? (
             <>
@@ -356,134 +332,94 @@ export default function HabitTracker() {
                   }
                 );
 
-                return sortedCategories.map(([category, categoryHabits]) => (
-                  <div key={category} className="category-group">
-                    {/* Category Header */}
+                // Filter out work category on weekends (Saturday = 6, Sunday = 0)
+                const today = new Date();
+                const dayOfWeek = today.getDay();
+                const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+
+                const filteredCategories = sortedCategories.filter(
+                  ([category]) => {
+                    if (isWeekend && category.toLowerCase() === "work") {
+                      return false;
+                    }
+                    return true;
+                  }
+                );
+
+                return filteredCategories.map(([category, categoryHabits]) => (
+                  <div
+                    key={category}
+                    className="category-group"
+                    style={{
+                      border: "1px solid #e5e7eb",
+                      borderRadius: "12px",
+                      padding: "16px",
+                      backgroundColor: "#fafafa",
+                    }}
+                  >
                     <div
                       style={{
                         display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        marginBottom: "16px",
-                        paddingBottom: "8px",
-                        borderBottom: "2px solid #e5e7eb",
+                        flexDirection: "column",
+                        gap: "8px",
                       }}
                     >
-                      <h2
-                        style={{
-                          fontSize: "18px",
-                          fontWeight: "700",
-                          color: "#1f2937",
-                          textTransform: "capitalize",
-                        }}
-                      >
-                        {category}
-                      </h2>
-                      <button
-                        onClick={() => toggleCategoryCollapse(category)}
-                        className="flex items-center justify-center w-9 h-9 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors focus:outline-none focus:ring-2 focus:ring-[#4169e1] focus:ring-offset-1"
-                        title={
-                          collapsedCategories.has(category)
-                            ? "Expand category"
-                            : "Collapse category"
-                        }
-                      >
-                        <svg
-                          className={`w-5 h-5 text-gray-600 transition-transform duration-200 ${
-                            collapsedCategories.has(category)
-                              ? "rotate-180"
-                              : ""
-                          }`}
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M19 9l-7 7-7-7"
-                          />
-                        </svg>
-                      </button>
-                    </div>
-
-                    {/* Category Habits */}
-                    {!collapsedCategories.has(category) && (
-                      <div
-                        style={{
-                          display: "flex",
-                          flexDirection: "column",
-                          gap: "20px",
-                        }}
-                      >
-                        {categoryHabits.map((habit) => (
-                          <div key={habit.id}>
-                            {/* Habit Name with Collapse Button */}
-                            <div
-                              style={{
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "space-between",
-                                marginBottom: "12px",
-                              }}
-                            >
+                      {categoryHabits.map((habit) => (
+                        <div key={habit.id}>
+                          {/* 4x7 Calendar Grid for this habit - show current week when collapsed, all weeks when expanded */}
+                          <div
+                            style={{
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: "4px",
+                            }}
+                          >
+                            {(collapsedHabits.has(habit.id)
+                              ? [viewAllWeeks[3]]
+                              : viewAllWeeks
+                            ).map((week, weekIndex) => (
                               <div
+                                key={weekIndex}
                                 style={{
-                                  fontSize: "16px",
-                                  fontWeight: "600",
-                                  color: "#374151",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: "12px",
                                 }}
                               >
-                                {habit.name}
-                              </div>
-                              <button
-                                onClick={() => toggleHabitCollapse(habit.id)}
-                                className="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors focus:outline-none focus:ring-2 focus:ring-[#4169e1] focus:ring-offset-1"
-                                title={
-                                  collapsedHabits.has(habit.id)
-                                    ? "Expand habit"
-                                    : "Collapse habit"
-                                }
-                              >
-                                <svg
-                                  className={`w-4 h-4 text-gray-600 transition-transform duration-200 ${
+                                {/* Clickable emoji for expand/collapse */}
+                                <button
+                                  onClick={() => toggleHabitCollapse(habit.id)}
+                                  style={{
+                                    fontSize: "32px",
+                                    width: "40px",
+                                    height: "40px",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    flexShrink: 0,
+                                    background: "none",
+                                    border: "none",
+                                    cursor: "pointer",
+                                    borderRadius: "8px",
+                                    transition: "all 0.2s ease",
+                                  }}
+                                  className="hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-[#4169e1] focus:ring-offset-1"
+                                  title={
                                     collapsedHabits.has(habit.id)
-                                      ? "rotate-180"
-                                      : ""
-                                  }`}
-                                  fill="none"
-                                  stroke="currentColor"
-                                  viewBox="0 0 24 24"
+                                      ? `Expand ${habit.name}`
+                                      : `Collapse ${habit.name}`
+                                  }
                                 >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M19 9l-7 7-7-7"
-                                  />
-                                </svg>
-                              </button>
-                            </div>
+                                  {[...habit.name][0]}
+                                </button>
 
-                            {/* 4x7 Calendar Grid for this habit - show current week when collapsed, all weeks when expanded */}
-                            <div
-                              style={{
-                                display: "flex",
-                                flexDirection: "column",
-                                gap: "8px",
-                              }}
-                            >
-                              {(collapsedHabits.has(habit.id)
-                                ? [viewAllWeeks[3]]
-                                : viewAllWeeks
-                              ).map((week, weekIndex) => (
+                                {/* Week row */}
                                 <div
-                                  key={weekIndex}
                                   style={{
                                     display: "grid",
                                     gridTemplateColumns: "repeat(7, 1fr)",
                                     gap: "6px",
+                                    flex: 1,
                                   }}
                                 >
                                   {week.map((date, dayIndex) => {
@@ -525,12 +461,12 @@ export default function HabitTracker() {
                                     );
                                   })}
                                 </div>
-                              ))}
-                            </div>
+                              </div>
+                            ))}
                           </div>
-                        ))}
-                      </div>
-                    )}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 ));
               })()}
