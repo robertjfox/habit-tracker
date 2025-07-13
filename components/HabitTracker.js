@@ -17,16 +17,55 @@ export default function HabitTracker() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [newHabitName, setNewHabitName] = useState("");
   const [newHabitIsPositive, setNewHabitIsPositive] = useState(true);
+  const [newHabitCategory, setNewHabitCategory] = useState("");
+  const [newHabitOrder, setNewHabitOrder] = useState("");
   const [loading, setLoading] = useState(true);
   const [weeks, setWeeks] = useState([]);
   const [loadingMore, setLoadingMore] = useState(false);
   const [collapsedHabits, setCollapsedHabits] = useState(new Set());
+  const [collapsedCategories, setCollapsedCategories] = useState(new Set());
 
   const scrollRef = useRef(null);
   const selectedHabit = habits.find((h) => h.id === selectedHabitId);
   const isViewAll = selectedHabitId === "view-all";
 
-  // Sort habits: positive first (alphabetized), then negative (alphabetized)
+  // Group habits by category and sort
+  const groupedHabits = () => {
+    const groups = {};
+    habits.forEach((habit) => {
+      const category = habit.category || "Other";
+      if (!groups[category]) {
+        groups[category] = [];
+      }
+      groups[category].push(habit);
+    });
+
+    // Sort habits within each category by order field, then positive first, then alphabetically
+    Object.keys(groups).forEach((category) => {
+      groups[category].sort((a, b) => {
+        // First sort by order field (if both have it)
+        if (a.order !== undefined && b.order !== undefined) {
+          if (a.order !== b.order) {
+            return a.order - b.order;
+          }
+        }
+        // If only one has order, prioritize it
+        if (a.order !== undefined && b.order === undefined) return -1;
+        if (a.order === undefined && b.order !== undefined) return 1;
+
+        // Then sort by type: positive (true) before negative (false)
+        if (a.is_positive !== b.is_positive) {
+          return b.is_positive - a.is_positive;
+        }
+        // Finally sort alphabetically within each type
+        return a.name.localeCompare(b.name);
+      });
+    });
+
+    return groups;
+  };
+
+  // Sort habits for dropdown: positive first (alphabetized), then negative (alphabetized)
   const sortedHabits = [...habits].sort((a, b) => {
     // First sort by type: positive (true) before negative (false)
     if (a.is_positive !== b.is_positive) {
@@ -51,10 +90,30 @@ export default function HabitTracker() {
     return weeks;
   };
 
+  // Toggle collapse state for a category
+  const toggleCategoryCollapse = (category) => {
+    setCollapsedCategories((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(category)) {
+        newSet.delete(category);
+      } else {
+        newSet.add(category);
+      }
+      return newSet;
+    });
+  };
+
   useEffect(() => {
     fetchHabits();
     fetchCompletions();
     setWeeks(getInitialWeeks());
+
+    // Collapse work category on weekends (Saturday = 6, Sunday = 0)
+    const today = new Date();
+    const dayOfWeek = today.getDay();
+    if (dayOfWeek === 0 || dayOfWeek === 6) {
+      setCollapsedCategories(new Set(["work"]));
+    }
   }, []);
 
   useEffect(() => {
@@ -144,7 +203,12 @@ export default function HabitTracker() {
       const { data, error } = await supabase
         .from("habits")
         .insert([
-          { name: newHabitName.trim(), is_positive: newHabitIsPositive },
+          {
+            name: newHabitName.trim(),
+            is_positive: newHabitIsPositive,
+            category: newHabitCategory.trim() || null,
+            order: newHabitOrder.trim() ? parseInt(newHabitOrder) : null,
+          },
         ])
         .select();
 
@@ -155,6 +219,8 @@ export default function HabitTracker() {
       setSelectedHabitId(newHabit.id);
       setNewHabitName("");
       setNewHabitIsPositive(true);
+      setNewHabitCategory("");
+      setNewHabitOrder("");
       setShowAddModal(false);
     } catch (error) {
       console.error("Error adding habit:", error);
@@ -208,6 +274,7 @@ export default function HabitTracker() {
   }
 
   const viewAllWeeks = getViewAllWeeks();
+  const habitGroups = groupedHabits();
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -263,118 +330,210 @@ export default function HabitTracker() {
         className="flex-1 overflow-y-auto"
       >
         {isViewAll && habits.length > 0 ? (
-          /* View All Layout - Individual calendars for each habit */
+          /* View All Layout - Grouped by category */
           <div style={{ padding: "16px 12px" }}>
             <div
-              style={{ display: "flex", flexDirection: "column", gap: "20px" }}
+              style={{ display: "flex", flexDirection: "column", gap: "24px" }}
             >
-              {sortedHabits.map((habit) => (
-                <div key={habit.id}>
-                  {/* Habit Name with Collapse Button */}
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      marginBottom: "12px",
-                    }}
-                  >
+              {(() => {
+                const categoryOrder = ["morning", "work", "other", "negative"];
+                const sortedCategories = Object.entries(habitGroups).sort(
+                  ([a], [b]) => {
+                    const aIndex = categoryOrder.indexOf(a.toLowerCase());
+                    const bIndex = categoryOrder.indexOf(b.toLowerCase());
+
+                    // If both categories are in the predefined order, sort by that order
+                    if (aIndex !== -1 && bIndex !== -1) {
+                      return aIndex - bIndex;
+                    }
+
+                    // If only one is in the predefined order, prioritize it
+                    if (aIndex !== -1) return -1;
+                    if (bIndex !== -1) return 1;
+
+                    // If neither is in the predefined order, sort alphabetically
+                    return a.localeCompare(b);
+                  }
+                );
+
+                return sortedCategories.map(([category, categoryHabits]) => (
+                  <div key={category} className="category-group">
+                    {/* Category Header */}
                     <div
                       style={{
-                        fontSize: "16px",
-                        fontWeight: "600",
-                        color: "#374151",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        marginBottom: "16px",
+                        paddingBottom: "8px",
+                        borderBottom: "2px solid #e5e7eb",
                       }}
                     >
-                      {habit.name}
-                    </div>
-                    <button
-                      onClick={() => toggleHabitCollapse(habit.id)}
-                      className="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors focus:outline-none focus:ring-2 focus:ring-[#4169e1] focus:ring-offset-1"
-                      title={
-                        collapsedHabits.has(habit.id)
-                          ? "Expand habit"
-                          : "Collapse habit"
-                      }
-                    >
-                      <svg
-                        className={`w-4 h-4 text-gray-600 transition-transform duration-200 ${
-                          collapsedHabits.has(habit.id) ? "rotate-180" : ""
-                        }`}
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M19 9l-7 7-7-7"
-                        />
-                      </svg>
-                    </button>
-                  </div>
-
-                  {/* 4x7 Calendar Grid for this habit - show current week when collapsed, all weeks when expanded */}
-                  <div
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: "8px",
-                    }}
-                  >
-                    {(collapsedHabits.has(habit.id)
-                      ? [viewAllWeeks[3]]
-                      : viewAllWeeks
-                    ).map((week, weekIndex) => (
-                      <div
-                        key={weekIndex}
+                      <h2
                         style={{
-                          display: "grid",
-                          gridTemplateColumns: "repeat(7, 1fr)",
-                          gap: "6px",
+                          fontSize: "18px",
+                          fontWeight: "700",
+                          color: "#1f2937",
+                          textTransform: "capitalize",
                         }}
                       >
-                        {week.map((date, dayIndex) => {
-                          const dateStr = formatDateForDB(date);
-                          const key = `${habit.id}-${dateStr}`;
-                          const isCompleted = completions[key] || false;
-                          const today = isToday(date);
-                          const habitType = habit.is_positive
-                            ? "positive"
-                            : "negative";
+                        {category}
+                      </h2>
+                      <button
+                        onClick={() => toggleCategoryCollapse(category)}
+                        className="flex items-center justify-center w-9 h-9 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors focus:outline-none focus:ring-2 focus:ring-[#4169e1] focus:ring-offset-1"
+                        title={
+                          collapsedCategories.has(category)
+                            ? "Expand category"
+                            : "Collapse category"
+                        }
+                      >
+                        <svg
+                          className={`w-5 h-5 text-gray-600 transition-transform duration-200 ${
+                            collapsedCategories.has(category)
+                              ? "rotate-180"
+                              : ""
+                          }`}
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M19 9l-7 7-7-7"
+                          />
+                        </svg>
+                      </button>
+                    </div>
 
-                          return (
-                            <button
-                              key={dayIndex}
-                              onClick={() => toggleCompletion(habit.id, date)}
-                              className={`
-                                aspect-square rounded-lg text-xs font-medium transition-all duration-200 min-h-[40px]
-                                ${
-                                  isCompleted
-                                    ? `habit-complete ${habitType} shadow-sm`
-                                    : `habit-incomplete ${habitType}`
-                                }
-                                ${
-                                  today
-                                    ? "ring-2 ring-[#4169e1] ring-offset-1"
-                                    : ""
-                                }
-                                hover:scale-105 active:scale-95
-                              `}
-                              title={`${
-                                habit.name
-                              } - ${date.toLocaleDateString()}`}
+                    {/* Category Habits */}
+                    {!collapsedCategories.has(category) && (
+                      <div
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: "20px",
+                        }}
+                      >
+                        {categoryHabits.map((habit) => (
+                          <div key={habit.id}>
+                            {/* Habit Name with Collapse Button */}
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "space-between",
+                                marginBottom: "12px",
+                              }}
                             >
-                              {date.getDate()}
-                            </button>
-                          );
-                        })}
+                              <div
+                                style={{
+                                  fontSize: "16px",
+                                  fontWeight: "600",
+                                  color: "#374151",
+                                }}
+                              >
+                                {habit.name}
+                              </div>
+                              <button
+                                onClick={() => toggleHabitCollapse(habit.id)}
+                                className="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors focus:outline-none focus:ring-2 focus:ring-[#4169e1] focus:ring-offset-1"
+                                title={
+                                  collapsedHabits.has(habit.id)
+                                    ? "Expand habit"
+                                    : "Collapse habit"
+                                }
+                              >
+                                <svg
+                                  className={`w-4 h-4 text-gray-600 transition-transform duration-200 ${
+                                    collapsedHabits.has(habit.id)
+                                      ? "rotate-180"
+                                      : ""
+                                  }`}
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M19 9l-7 7-7-7"
+                                  />
+                                </svg>
+                              </button>
+                            </div>
+
+                            {/* 4x7 Calendar Grid for this habit - show current week when collapsed, all weeks when expanded */}
+                            <div
+                              style={{
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: "8px",
+                              }}
+                            >
+                              {(collapsedHabits.has(habit.id)
+                                ? [viewAllWeeks[3]]
+                                : viewAllWeeks
+                              ).map((week, weekIndex) => (
+                                <div
+                                  key={weekIndex}
+                                  style={{
+                                    display: "grid",
+                                    gridTemplateColumns: "repeat(7, 1fr)",
+                                    gap: "6px",
+                                  }}
+                                >
+                                  {week.map((date, dayIndex) => {
+                                    const dateStr = formatDateForDB(date);
+                                    const key = `${habit.id}-${dateStr}`;
+                                    const isCompleted =
+                                      completions[key] || false;
+                                    const today = isToday(date);
+                                    const habitType = habit.is_positive
+                                      ? "positive"
+                                      : "negative";
+
+                                    return (
+                                      <button
+                                        key={dayIndex}
+                                        onClick={() =>
+                                          toggleCompletion(habit.id, date)
+                                        }
+                                        className={`
+                                        aspect-square rounded-lg text-xs font-medium transition-all duration-200 min-h-[40px]
+                                        ${
+                                          isCompleted
+                                            ? `habit-complete ${habitType} shadow-sm`
+                                            : `habit-incomplete ${habitType}`
+                                        }
+                                        ${
+                                          today
+                                            ? "ring-2 ring-[#4169e1] ring-offset-1"
+                                            : ""
+                                        }
+                                        hover:scale-105 active:scale-95
+                                      `}
+                                        title={`${
+                                          habit.name
+                                        } - ${date.toLocaleDateString()}`}
+                                      >
+                                        {date.getDate()}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    ))}
+                    )}
                   </div>
-                </div>
-              ))}
+                ));
+              })()}
             </div>
           </div>
         ) : selectedHabit ? (
@@ -470,6 +629,34 @@ export default function HabitTracker() {
               autoFocus
             />
 
+            {/* Category Input */}
+            <input
+              type="text"
+              value={newHabitCategory}
+              onChange={(e) => setNewHabitCategory(e.target.value)}
+              placeholder="Enter category (optional)"
+              className="w-full border-2 border-gray-200 rounded-2xl focus:outline-none focus:ring-0 focus:border-[#4169e1] text-gray-900 transition-colors"
+              style={{
+                padding: "16px 20px",
+                fontSize: "16px",
+                marginBottom: "16px",
+              }}
+            />
+
+            {/* Order Input */}
+            <input
+              type="number"
+              value={newHabitOrder}
+              onChange={(e) => setNewHabitOrder(e.target.value)}
+              placeholder="Enter order (optional)"
+              className="w-full border-2 border-gray-200 rounded-2xl focus:outline-none focus:ring-0 focus:border-[#4169e1] text-gray-900 transition-colors"
+              style={{
+                padding: "16px 20px",
+                fontSize: "16px",
+                marginBottom: "16px",
+              }}
+            />
+
             {/* Positive/Negative Toggle */}
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-3">
@@ -512,6 +699,8 @@ export default function HabitTracker() {
                 onClick={() => {
                   setShowAddModal(false);
                   setNewHabitName("");
+                  setNewHabitCategory("");
+                  setNewHabitOrder("");
                   setNewHabitIsPositive(true);
                 }}
                 className="flex-1 border-2 border-gray-300 text-gray-700 rounded-2xl hover:bg-gray-50 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 font-semibold transition-all"
