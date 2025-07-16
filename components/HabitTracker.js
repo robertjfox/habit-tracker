@@ -351,9 +351,7 @@ export default function HabitTracker() {
                     key={category}
                     className="category-group"
                     style={{
-                      border: "1px solid #e5e7eb",
-                      borderRadius: "12px",
-                      padding: "16px",
+                      marginBottom: "20px",
                       backgroundColor: "#fafafa",
                     }}
                   >
