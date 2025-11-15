@@ -58,51 +58,51 @@ body {
 }
 
 /* Positive habit styles */
-.habit-complete.positive {
-  background-color: var(--positive-green);
-  color: white;
+button.habit-complete.positive {
+  background-color: var(--positive-green) !important;
+  color: white !important;
 }
 
-.habit-incomplete.positive {
-  background-color: #f3f4f6;
-  color: #9ca3af;
-  border: 1px solid #e5e7eb;
+button.habit-incomplete.positive {
+  background-color: #f3f4f6 !important;
+  color: #9ca3af !important;
+  border: 1px solid #e5e7eb !important;
 }
 
-.habit-incomplete.positive:hover {
-  background-color: #e5e7eb;
+button.habit-incomplete.positive:hover {
+  background-color: #e5e7eb !important;
 }
 
 /* Negative habit styles */
-.habit-complete.negative {
-  background-color: var(--negative-red);
-  color: white;
+button.habit-complete.negative {
+  background-color: var(--negative-red) !important;
+  color: white !important;
 }
 
-.habit-incomplete.negative {
-  background-color: #f3f4f6;
-  color: #9ca3af;
-  border: 1px solid #e5e7eb;
+button.habit-incomplete.negative {
+  background-color: #f3f4f6 !important;
+  color: #9ca3af !important;
+  border: 1px solid #e5e7eb !important;
 }
 
-.habit-incomplete.negative:hover {
-  background-color: #e5e7eb;
+button.habit-incomplete.negative:hover {
+  background-color: #e5e7eb !important;
 }
 
 /* Legacy styles for backward compatibility */
-.habit-complete {
-  background-color: var(--positive-green);
-  color: white;
+button.habit-complete {
+  background-color: var(--positive-green) !important;
+  color: white !important;
 }
 
-.habit-incomplete {
-  background-color: #f3f4f6;
-  color: #9ca3af;
-  border: 1px solid #e5e7eb;
+button.habit-incomplete {
+  background-color: #f3f4f6 !important;
+  color: #9ca3af !important;
+  border: 1px solid #e5e7eb !important;
 }
 
-.habit-incomplete:hover {
-  background-color: #e5e7eb;
+button.habit-incomplete:hover {
+  background-color: #e5e7eb !important;
 }
 
 /* Better mobile touch targets */
@@ -118,40 +118,40 @@ html {
 
 @media (prefers-color-scheme: dark) {
   body {
-    background: #0a0a0a;
-    color: #e5e5e5;
+    background: #fafafa;
+    color: #333;
   }
 
-  /* Positive habit dark mode */
-  .habit-incomplete.positive {
-    background-color: #1f2937;
-    color: #6b7280;
-    border: 1px solid #374151;
+  /* Positive habit dark mode - disabled, keep light mode */
+  button.habit-incomplete.positive {
+    background-color: #f3f4f6 !important;
+    color: #9ca3af !important;
+    border: 1px solid #e5e7eb !important;
   }
 
-  .habit-incomplete.positive:hover {
-    background-color: #374151;
+  button.habit-incomplete.positive:hover {
+    background-color: #e5e7eb !important;
   }
 
-  /* Negative habit dark mode */
-  .habit-incomplete.negative {
-    background-color: #1f2937;
-    color: #6b7280;
-    border: 1px solid #374151;
+  /* Negative habit dark mode - disabled, keep light mode */
+  button.habit-incomplete.negative {
+    background-color: #f3f4f6 !important;
+    color: #9ca3af !important;
+    border: 1px solid #e5e7eb !important;
   }
 
-  .habit-incomplete.negative:hover {
-    background-color: #374151;
+  button.habit-incomplete.negative:hover {
+    background-color: #e5e7eb !important;
   }
 
-  /* Legacy dark mode styles */
-  .habit-incomplete {
-    background-color: #1f2937;
-    color: #6b7280;
-    border: 1px solid #374151;
+  /* Legacy dark mode styles - disabled, keep light mode */
+  button.habit-incomplete {
+    background-color: #f3f4f6 !important;
+    color: #9ca3af !important;
+    border: 1px solid #e5e7eb !important;
   }
 
-  .habit-incomplete:hover {
-    background-color: #374151;
+  button.habit-incomplete:hover {
+    background-color: #e5e7eb !important;
   }
 }

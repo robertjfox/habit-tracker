@@ -257,8 +257,8 @@ export default function HabitTracker() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      {/* Fixed Header - Hidden */}
-      <div style={{ display: "none" }}>
+      {/* Fixed Header */}
+      <div className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-10" style={{ padding: "16px 12px" }}>
         <div className="flex items-stretch gap-4">
           {habits.length > 0 ? (
             <>
